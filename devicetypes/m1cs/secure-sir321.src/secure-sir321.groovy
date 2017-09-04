@@ -30,11 +30,8 @@ metadata {
 		capability "Sensor"
 		capability "Thermostat Schedule"
 		capability "Temperature Measurement"
-		
-        command "boost"
-        attribute "boostTimeLeft", "number"
-        
-		fingerprint mfr: "0059", prod: "0010", deviceJoinName: "Immerison Heater"		
+		        
+		fingerprint mfr: "0059", prod: "0010", deviceJoinName: "Immersion Heater"		
 	}
 
 	// simulator metadata
@@ -69,13 +66,9 @@ metadata {
 		//	state "default", label:'Configure', action:"configuration.configure", icon:"st.secondary.refresh"
 		//}
         
-        standardTile("boost", "device.boostTimeLeft", width: 2, height: 2) {
-            state "off", label: "Boost", backgroundColor: "#ffffff", nextState: "on", action:"boost"
-            state "on", label: '${currentValue}', backgroundColor: "#00a0dc", action:"boost"
-        }
 
 		main "switch"
-		details(["switch","temperature","refresh","boost"])
+		details(["switch","temperature","refresh"])
 	}
 }
 
@@ -170,7 +163,6 @@ def zwaveEvent(physicalgraph.zwave.Command cmd) {
 }
 
 def on() {
-	log.debug "On"
 	delayBetween([
 		zwave.basicV1.basicSet(value: 0xFF).format(),
 		zwave.switchBinaryV1.switchBinaryGet().format(),
@@ -179,10 +171,6 @@ def on() {
 }
 
 def off() {
-    sendEvent(name: "boostTimeLeft", value: 0, isStateChange: false)
-    sendEvent(name: "boost", value: "off", isStateChange: true)
-    state.boostStartTime = 0
-    
 	delayBetween([
 		zwave.basicV1.basicSet(value: 0x00).format(),
 		zwave.switchBinaryV1.switchBinaryGet().format(),
@@ -196,66 +184,6 @@ def poll() {
 	zwave.sensorMultilevelV1.sensorMultilevelGet().format()
 	])
 }
-
-def boost() {
-	log.debug "Boost Pressed"
-	def timeleft = device.currentValue("boostTimeLeft")
-    log.debug timeleft
-    if (state.boostStartTime == 0 ) {   
-    	sendEvent(name: "boost", value: "on", isStateChange: true)      
-    	timeleft = 15
-    	log.debug "New Boost $timeleft minutes"
-    	state.boostStartTime = now()/60000  
-        boostTime(timeleft)
-	}
-    else {        
-    	timeleft = timeleft - ((now()/60000) - state.boostStartTime)
-        
-        if (timeleft == 0 || timeleft < 5) {
-    		log.debug "Extending Boost ${timeleft} minutes"
-        	state.boostStartTime = now()/60000     
-            timeleft = 15
-            unschedule(boostOff)
-            boostTime(timeleft)
-        }
-        else if (timeleft > 5 && timeleft < 20) {
-    		log.debug "Extending Boost ${timeleft} minutes"
-        	state.boostStartTime = now()/60000     
-            timeleft = 30
-            unschedule(boostOff)
-            boostTime(timeleft)
-        }
-        else if (timeleft > 20 && timeleft < 40) {
-    		log.debug "Extending Boost ${timeleft} minutes"
-        	state.boostStartTime = now()/60000        
-            timeleft = 60
-            unschedule(boostOff)
-            boostTime(timeleft)
-        }
-        else {
-        	log.debug "Cancelling boost"     
-            timeleft = 0
-            unschedule(boostOff)
-            boostOff()
-        }
-    }
-    
-    sendEvent(name: "boostTimeLeft", value: timeleft, isStateChange: false)
-    log.debug "Boost start time: $state.boostStartTime"
-    log.debug "Boost duration: $timeleft"
-}
-
-def boostTime(timer) {
-	log.debug "starting boost timer for $timer minutes"
-	on()
-    runIn(60*timer, boostOff)
-}
-
-def boostOff() {
-	log.debug "stopping boost timer"
-    off()
-}
-
 
 def refresh() {
     delayBetween([
@@ -276,14 +204,12 @@ def updated() {
 
 def configure() {
 	log.debug "configure"
-    state.boostStartTime = 0
-    def boostTimeLeft = 0
 	def cmds = []
     cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: 0, parameterNumber: 1, size: 1).format() //disable failsafe timer
     cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: 0, parameterNumber: 2, size: 2).format() //Set Temp Scale to C
     cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: 300, parameterNumber: 3, size: 2).format() //poll interval in seconds
     cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: 10, parameterNumber: 4, size: 2).format() //poll interval in degrees
-    cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: 800, parameterNumber: 5, size: 2).format() //degree failsafe
+    cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: 800, parameterNumber: 5, size: 2).format() //degree failsafe in 0.1 degrees (800 = 80 C)
     cmds << zwave.associationV1.associationSet(groupingIdentifier:2, nodeId:[zwaveHubNodeId]).format()
 	delayBetween(cmds, 2500)
 }
