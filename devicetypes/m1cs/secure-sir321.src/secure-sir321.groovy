@@ -48,11 +48,11 @@ metadata {
 	tiles(scale: 2) {
 		multiAttributeTile(name:"switch", type: "lighting", width: 6, height: 4, canChangeIcon: true){
 			tileAttribute ("device.switch", key: "PRIMARY_CONTROL") {
-				attributeState "on", label: 'Heating', action: "switch.off", icon: "st.Bath.bath4.on", backgroundColor: "#79b821"
-				attributeState "off", label: '${name}', action: "switch.on", icon: "st.Bath.bath4.off", backgroundColor: "#ffffff"
+				attributeState "on", label: 'Heating', action: "switch.off", icon: "st.Bath.bath13", backgroundColor: "#79b821", nextState:"off"
+				attributeState "off", label: '${name}', action: "switch.on", icon: "st.Bath.bath13", backgroundColor: "#ffffff", nextState:"on"
 			}
 			tileAttribute("device.temperature", key: "SECONDARY_CONTROL") {
-				attributeState("default", label:'${currentValue}', unit:"C")
+				attributeState("default", label:'${currentValue}', unit:"C", icon: "st.Weather.weather2")
 			}
 		}
 
